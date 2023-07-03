@@ -18,6 +18,7 @@ function createUser(username: string, age: number, hobbies: string) {
     age,
     hobbies,
   };
+
   users.push(newUser);
   return newUser;
 }

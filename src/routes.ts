@@ -6,14 +6,18 @@ import {
   deleteUser,
 } from "./db.js";
 import http from "http";
-function handleGetAllUsers(
+
+async function handleGetAllUsers(
   _req: http.IncomingMessage,
   res: http.ServerResponse
 ) {
-  const users = getAllUsers();
-  res.statusCode = 200;
-  res.setHeader("Content-Type", "application/json");
-  res.end(JSON.stringify(users));
+  await new Promise<void>((resolve) => {
+    const users = getAllUsers();
+    res.statusCode = 200;
+    res.setHeader("Content-Type", "application/json");
+    res.end(JSON.stringify(users));
+    resolve();
+  });
 }
 
 function handleGetUserById(
@@ -26,6 +30,7 @@ function handleGetUserById(
     res.statusCode = 200;
     res.setHeader("Content-Type", "application/json");
     res.end(JSON.stringify(user));
+    return user;
   } else {
     res.statusCode = 404;
     res.setHeader("Content-Type", "text/plain");
@@ -33,65 +38,82 @@ function handleGetUserById(
   }
 }
 
-function handleCreateUser(req: http.IncomingMessage, res: http.ServerResponse) {
-  let body = "";
-  req.on("data", (chunk) => {
-    body += chunk;
-  });
-  req.on("end", () => {
-    const { username, age, hobbies } = JSON.parse(body);
-    if (!username || !age || !hobbies) {
-      res.statusCode = 400;
-      res.setHeader("Content-Type", "text/plain");
-      res.end("Missing required fields");
-    } else {
-      const user = createUser(username, age, hobbies);
-      res.statusCode = 201;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(user));
-    }
+async function handleCreateUser(
+  req: http.IncomingMessage,
+  res: http.ServerResponse
+) {
+  await new Promise<void>((resolve) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", () => {
+      const { username, age, hobbies } = JSON.parse(body);
+
+      if (!username || !age || !hobbies) {
+        res.statusCode = 400;
+        res.setHeader("Content-Type", "text/plain");
+        res.end("Missing required fields");
+      } else {
+        const user = createUser(username, age, hobbies);
+        res.statusCode = 201;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(user));
+      }
+
+      resolve();
+    });
   });
 }
 
-function handleUpdateUser(
+async function handleUpdateUser(
   req: http.IncomingMessage,
   res: http.ServerResponse,
   userId: string
 ) {
-  let body = "";
-  req.on("data", (chunk) => {
-    body += chunk;
-  });
-  req.on("end", () => {
-    const { username, age, hobbies } = JSON.parse(body);
-    const user = updateUser(userId, username, age, hobbies);
-    if (user) {
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "application/json");
-      res.end(JSON.stringify(user));
-    } else {
-      res.statusCode = 404;
-      res.setHeader("Content-Type", "text/plain");
-      res.end("User not found");
-    }
+  await new Promise<void>((resolve) => {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+    req.on("end", () => {
+      const { username, age, hobbies } = JSON.parse(body);
+      const user = updateUser(userId, username, age, hobbies);
+      if (user) {
+        res.statusCode = 200;
+        res.setHeader("Content-Type", "application/json");
+        res.end(JSON.stringify(user));
+      } else {
+        res.statusCode = 404;
+        res.setHeader("Content-Type", "text/plain");
+        res.end("User not found");
+      }
+
+      resolve();
+    });
   });
 }
 
-function handleDeleteUser(
+async function handleDeleteUser(
   _req: http.IncomingMessage,
   res: http.ServerResponse,
   userId: string
 ) {
-  const success = deleteUser(userId);
-  if (success) {
-    res.statusCode = 204;
-    res.end();
-  } else {
-    res.statusCode = 404;
-    res.setHeader("Content-Type", "text/plain");
-    res.end("User not found");
-  }
+  await new Promise((resolve) => {
+    const success = deleteUser(userId);
+    if (success) {
+      res.statusCode = 204;
+      res.end();
+      resolve(success);
+    } else {
+      res.statusCode = 404;
+      res.setHeader("Content-Type", "text/plain");
+      res.end("User not found");
+      resolve(false);
+    }
+  });
 }
+
 export {
   handleGetAllUsers,
   handleGetUserById,

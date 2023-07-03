@@ -1,92 +1,71 @@
-// index.js
 import cluster from "cluster";
 import { cpus } from "os";
 import http from "http";
+import dotenv from "dotenv";
+
+dotenv.config();
 const numCPUs = cpus().length;
+const numWorkers = numCPUs;
+const port = process.env.PORT || 4000;
+let currentWorkerIndex = 0;
 
 if (cluster.isPrimary) {
-  // Code for the master process
-  for (let i = 0; i < numCPUs - 1; i++) {
-    cluster.fork();
+  const workers: any = [];
+  // Create a worker for each CPU
+  for (let i = 0; i < numCPUs; i++) {
+    const worker = cluster.fork();
+    workers.push(worker);
   }
-  console.log("Master process started.");
 
-  // Create a round-robin array to distribute requests
-  const workers = Object.values(cluster.workers || {});
-  let nextWorkerIndex = 0;
+  // Load balancer logic
 
-  cluster.on("exit", (worker, code, signal) => {
-    console.log("later");
-    console.log(
-      `Worker ${worker.process.pid} exited with code ${code} and signal ${signal}.`
+  const server = http.createServer((req, res) => {
+    // Set CORS headers
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+    res.setHeader(
+      "Access-Control-Allow-Headers",
+      "Content-Type, Authorization"
     );
-    // Restart the worker if it exits
-    cluster.fork();
+
+    // Forward the request to the target worker
+    const targetWorker = workers[currentWorkerIndex];
+    currentWorkerIndex = (currentWorkerIndex + 1) % workers.length;
+    const proxyPort = Number(port) + Number(targetWorker.id);
+    const proxyReq = http.request(
+      {
+        host: "localhost",
+        port: String(proxyPort),
+        path: req.url,
+        method: req.method,
+        headers: req.headers,
+      },
+      (proxyRes) => {
+        if (proxyRes.statusCode) {
+          res.writeHead(proxyRes.statusCode, proxyRes.headers);
+          proxyRes.pipe(res);
+        } else {
+          res.statusCode = 500;
+          res.end("Internal Server Error");
+        }
+      }
+    );
+
+    req.pipe(proxyReq);
   });
 
-  // Load balancer to distribute requests
-  const balancer = (req: http.IncomingMessage, res: http.ServerResponse) => {
-    const worker = workers[nextWorkerIndex];
-    nextWorkerIndex = (nextWorkerIndex + 1) % workers.length;
-    if (!worker) return;
-    worker.send({ type: "request", request: req, response: res });
-  };
-
-  // Start the load balancer
-  const port = process.env.PORT || 3000;
-  const server = http.createServer(balancer);
   server.listen(port, () => {
-    console.log(`Load balancer listening on port ${port}`);
+    console.log(`Load balancer listening on http://localhost:${port}`);
   });
+} else {
+  if (process.env.PORT && cluster.worker?.id) {
+    const workerPort = Number(process.env.PORT) + Number(cluster.worker.id);
+
+    import("./worker.js")
+      .then((module) => module.default(String(workerPort)))
+      .catch((error) => {
+        console.error("Error starting worker process:", error);
+        process.exit(1);
+      });
+  }
 }
-// else {
-//   // Code for the worker process
-//   console.log(`Worker process ${cluster.worker.process.pid} started.`);
-
-//   // Your CRUD API server implementation here
-//   const app = require("./app");
-//   const port = process.env.PORT + cluster.worker.id;
-
-//   app.listen(port, () => {
-//     console.log(`Worker ${cluster.worker.id} listening on port ${port}`);
-//   });
-// }
-
-// const http = require("http");
-// const url = require("url");
-// const {
-//   handleGetAllUsers,
-//   handleGetUserById,
-//   handleCreateUser,
-//   handleUpdateUser,
-//   handleDeleteUser,
-// } = require("./routes");
-
-// const port = process.env.PORT || 3000;
-
-// const server = http.createServer((req, res) => {
-//   const { pathname, query } = url.parse(req.url, true);
-
-//   if (pathname === "/api/users" && req.method === "GET") {
-//     handleGetAllUsers(req, res);
-//   } else if (pathname.startsWith("/api/users/") && req.method === "GET") {
-//     const userId = pathname.split("/")[3];
-//     handleGetUserById(req, res, userId);
-//   } else if (pathname === "/api/users" && req.method === "POST") {
-//     handleCreateUser(req, res);
-//   } else if (pathname.startsWith("/api/users/") && req.method === "PUT") {
-//     const userId = pathname.split("/")[3];
-//     handleUpdateUser(req, res, userId);
-//   } else if (pathname.startsWith("/api/users/") && req.method === "DELETE") {
-//     const userId = pathname.split("/")[3];
-//     handleDeleteUser(req, res, userId);
-//   } else {
-//     res.statusCode = 404;
-//     res.setHeader("Content-Type", "text/plain");
-//     res.end("Not found");
-//   }
-// });
-
-// server.listen(port, () => {
-//   console.log(`Server is running on port ${port}`);
-// });
