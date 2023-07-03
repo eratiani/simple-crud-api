@@ -1,0 +1,40 @@
+{
+  "name": "simple-crud-api",
+  "version": "1.0.0",
+  "description": "rs school task",
+  "type": "module",
+  "main": "dist/app.js",
+  "scripts": {
+    "start": "nodemon -e ts --watch src .env --exec \"tsc --incremental && ts-node src/app.ts\"",
+    "dev": "nodemon --exec ts-node ./src/app.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/eratiani/simple-crud-api.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/eratiani/simple-crud-api/issues"
+  },
+  "homepage": "https://github.com/eratiani/simple-crud-api#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "cross-env": "^7.0.3",
+    "dotenv": "^16.3.1",
+    "lodash": "^4.17.21",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.13",
+    "@types/lodash": "^4.14.195",
+    "@types/uuid": "^9.0.2",
+    "eslint": "^8.43.0",
+    "nodemon": "^2.0.22",
+    "prettier": "^2.8.8",
+    "ts-node": "^10.9.1",
+    "typescript": "^4.4.2",
+    "webpack": "^5.88.1",
+    "webpack-cli": "^5.1.4"
+  }
+}
